@@ -63,9 +63,11 @@ from agentir.hardening.provenance import (
 from agentir.hardening.release_views import (
     DatasetSplit,
     DecisionSource,
+    IdentityStatus,
     ModelTier,
     ObservationStatus,
     PreferenceRelease,
+    ReleaseIdentity,
     ReleaseMetadata,
     ReleaseProvenance,
     ReleaseRow,
@@ -105,6 +107,15 @@ from agentir.hardening.review_manifest import (
     write_review_manifest,
 )
 from agentir.hardening.review_tasks import build_review_tasks
+from agentir.hardening.standard_projections import (
+    AGENT_LIGHTNING_CONTRACT_REVISION,
+    ATIF_CONTRACT_REVISION,
+    STANDARD_PROJECTION_SCHEMA,
+    TRL_CONTRACT_REVISION,
+    ProjectionProfile,
+    StandardProjection,
+    project_release,
+)
 from agentir.hardening.streaming import CompileInterrupted, compile_jsonl
 from agentir.hardening.tool_registry import (
     DEFAULT_MAX_REGISTRY_BYTES,
@@ -163,10 +174,12 @@ __all__ = [
     "write_review_manifest",
     "DatasetSplit",
     "DecisionSource",
+    "IdentityStatus",
     "ModelTier",
     "ObservationStatus",
     "PreferenceRelease",
     "ReleaseMetadata",
+    "ReleaseIdentity",
     "ReleaseProvenance",
     "ReleaseRow",
     "ReleaseView",
@@ -186,6 +199,13 @@ __all__ = [
     "sft_release_from_projection",
     "tool_use_release_from_projection",
     "validate_release_row",
+    "AGENT_LIGHTNING_CONTRACT_REVISION",
+    "ATIF_CONTRACT_REVISION",
+    "STANDARD_PROJECTION_SCHEMA",
+    "TRL_CONTRACT_REVISION",
+    "ProjectionProfile",
+    "StandardProjection",
+    "project_release",
     "CompileInterrupted",
     "compile_jsonl",
     "DEFAULT_MAX_REGISTRY_BYTES",

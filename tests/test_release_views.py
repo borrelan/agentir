@@ -8,9 +8,11 @@ from agentir.hardening import (
     AdmissionState,
     DatasetSplit,
     DecisionSource,
+    IdentityStatus,
     ModelTier,
     ObservationStatus,
     PreferenceRelease,
+    ReleaseIdentity,
     ReleaseMetadata,
     ReleaseProvenance,
     ReleaseView,
@@ -105,6 +107,24 @@ def test_release_metadata_rejects_unclassified_model_tier() -> None:
     payload = _metadata().model_dump()
     payload["model_tier"] = ModelTier.UNCLASSIFIED
     with pytest.raises(ValueError, match="classified model tier"):
+        ReleaseMetadata(**payload)
+
+
+def test_release_identity_is_explicit_and_evidence_bound() -> None:
+    assert ReleaseIdentity().status is IdentityStatus.NOT_OBSERVED
+    with pytest.raises(ValueError, match="cannot carry"):
+        ReleaseIdentity(status=IdentityStatus.NOT_OBSERVED, name="guessed-agent")
+    with pytest.raises(ValueError, match="requires evidence"):
+        ReleaseIdentity(status=IdentityStatus.OBSERVED, name="codex")
+
+    payload = _metadata().model_dump()
+    payload["agent_identity"] = {
+        "status": "observed",
+        "name": "codex",
+        "version": "1.2.3",
+        "evidence_ids": ["identity-1"],
+    }
+    with pytest.raises(ValueError, match="metadata evidence_ids"):
         ReleaseMetadata(**payload)
 
 

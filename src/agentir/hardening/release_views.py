@@ -62,6 +62,56 @@ class ModelTier(StrEnum):
     UNCLASSIFIED = "unclassified"
 
 
+class IdentityStatus(StrEnum):
+    """Evidence state for an agent, harness, or model identity."""
+
+    OBSERVED = "observed"
+    REVIEWED = "reviewed"
+    NOT_OBSERVED = "not_observed"
+
+
+class ReleaseIdentity(BaseModel):
+    """Evidence-bound identity; provider names never fill this implicitly."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    status: IdentityStatus = IdentityStatus.NOT_OBSERVED
+    name: str | None = None
+    version: str | None = None
+    evidence_ids: tuple[str, ...] = ()
+
+    @field_validator("name", "version", mode="before")
+    @classmethod
+    def normalize_optional_identity_text(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        raise ValueError("release identity name/version must be non-empty when supplied")
+
+    @field_validator("evidence_ids", mode="before")
+    @classmethod
+    def normalize_identity_evidence(cls, value: Any) -> Any:
+        if not isinstance(value, (list, tuple)):
+            raise ValueError("release identity evidence_ids must be a sequence")
+        normalized = tuple(item.strip() for item in value if isinstance(item, str) and item.strip())
+        if len(normalized) != len(value):
+            raise ValueError("release identity evidence_ids must contain non-empty strings")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_identity_state(self) -> ReleaseIdentity:
+        if self.status is IdentityStatus.NOT_OBSERVED:
+            if self.name is not None or self.version is not None or self.evidence_ids:
+                raise ValueError("not-observed identity cannot carry values or evidence")
+            return self
+        if self.name is None:
+            raise ValueError("observed/reviewed identity requires a name")
+        if not self.evidence_ids:
+            raise ValueError("observed/reviewed identity requires evidence_ids")
+        return self
+
+
 class ObservationStatus(StrEnum):
     """Explicit tool-observation state; absence is never implicit success."""
 
@@ -135,6 +185,9 @@ class ReleaseMetadata(BaseModel):
     dedupe_group_id: str
     model_tier: ModelTier
     model_tier_registry_revision: str
+    agent_identity: ReleaseIdentity = Field(default_factory=ReleaseIdentity)
+    harness_identity: ReleaseIdentity = Field(default_factory=ReleaseIdentity)
+    model_identity: ReleaseIdentity = Field(default_factory=ReleaseIdentity)
 
     @field_validator(
         "release_revision",
@@ -182,6 +235,21 @@ class ReleaseMetadata(BaseModel):
             raise ValueError("release metadata requires a classified model tier")
         if self.provenance.unit_id not in self.evidence_ids:
             raise ValueError("release evidence_ids must include provenance.unit_id")
+        identity_evidence = {
+            evidence_id
+            for identity in (
+                self.agent_identity,
+                self.harness_identity,
+                self.model_identity,
+            )
+            for evidence_id in identity.evidence_ids
+        }
+        unknown_identity_evidence = identity_evidence.difference(self.evidence_ids)
+        if unknown_identity_evidence:
+            raise ValueError(
+                "release identity evidence must be present in metadata evidence_ids: "
+                + ", ".join(sorted(unknown_identity_evidence))
+            )
         return self
 
 
