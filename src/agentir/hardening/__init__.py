@@ -1,0 +1,209 @@
+"""Fail-closed contracts for a release-bound AgentIR hardening fork.
+
+The upstream IR remains useful for parsing and analysis, but its permissive
+models and lowering backends are not a trainer-release boundary.  This package
+adds the small, explicit boundary used by the hardening prototype:
+
+* immutable source lineage;
+* provider-independent admission decisions;
+* recursive hidden-content/raw-field screening; and
+* allowlisted SFT/tool-use projections with loss reports.
+
+No projection in this package serializes ``raw`` or arbitrary model metadata.
+"""
+
+from agentir.hardening.contracts import (
+    REQUIRED_QUALITY_DIMENSIONS,
+    AdmissionState,
+    HardenedRecord,
+    LossAction,
+    LossDecision,
+    ParentSnapshotRef,
+    PrivacyPolicy,
+    ProjectionResult,
+    QualityDecision,
+    QualityReview,
+    QualityReviewManifest,
+    SourceClass,
+    SourceLineage,
+    SourceRange,
+)
+from agentir.hardening.firewall import assess_record, scan_value
+from agentir.hardening.frontend_mapping import (
+    FRONTEND_MAPPER_REVISION,
+    map_row,
+    quality_gate,
+    row_shape,
+)
+from agentir.hardening.frontend_stream import (
+    FrontendCompileContext,
+    build_source_lineage,
+    compile_frontend_jsonl,
+)
+from agentir.hardening.harness_registry import (
+    DEFAULT_MAX_TRACE_LINE_BYTES,
+    HARNESS_REGISTRY_ADAPTER_REVISION,
+    HARNESS_REGISTRY_EVIDENCE_SCHEMA,
+    HARNESS_TRACE_SCHEMA,
+    HarnessRegistryError,
+    HarnessRegistryEvidence,
+    acquire_harness_registry,
+    harness_registry_digest,
+)
+from agentir.hardening.materializer import (
+    RELEASE_MATERIALIZER_REVISION,
+    materialize_release_view,
+)
+from agentir.hardening.projection import project
+from agentir.hardening.provenance import (
+    SnapshotManifestIndex,
+    parent_snapshot_from_row,
+    verify_parent_snapshot,
+)
+from agentir.hardening.release_views import (
+    DatasetSplit,
+    DecisionSource,
+    ModelTier,
+    ObservationStatus,
+    PreferenceRelease,
+    ReleaseMetadata,
+    ReleaseProvenance,
+    ReleaseRow,
+    ReleaseView,
+    RLPromptRelease,
+    RLRolloutRelease,
+    RLStep,
+    SFTRelease,
+    ToolDefinition,
+    ToolObservation,
+    ToolUseRelease,
+    ToolUseStep,
+    TrainingMessage,
+    TrainingToolCall,
+    VerifierOutcome,
+    VerifierStatus,
+    preference_pair_id,
+    sft_release_from_projection,
+    tool_use_release_from_projection,
+    validate_release_row,
+)
+from agentir.hardening.review_context import (
+    DEFAULT_MAX_CONTEXT_BYTES,
+    DEFAULT_MAX_STRING_BYTES,
+    REVIEW_CONTEXT_SCHEMA,
+    ReviewContextError,
+    build_review_context,
+)
+from agentir.hardening.review_manifest import (
+    REVIEW_MANIFEST_SCHEMA,
+    ReviewManifestArtifact,
+    artifact_from_json,
+    load_review_manifest,
+    review_manifest_artifact,
+    review_manifest_digest,
+    review_map,
+    write_review_manifest,
+)
+from agentir.hardening.review_tasks import build_review_tasks
+from agentir.hardening.streaming import CompileInterrupted, compile_jsonl
+from agentir.hardening.tool_registry import (
+    DEFAULT_MAX_REGISTRY_BYTES,
+    TOOL_REGISTRY_SCHEMA,
+    RegistryOrigin,
+    ToolRegistryArtifact,
+    load_tool_registry,
+    registry_tools,
+    tool_registry_artifact,
+    tool_registry_digest,
+    write_tool_registry,
+)
+
+__all__ = [
+    "AdmissionState",
+    "HardenedRecord",
+    "LossAction",
+    "LossDecision",
+    "PrivacyPolicy",
+    "ParentSnapshotRef",
+    "ProjectionResult",
+    "QualityDecision",
+    "QualityReviewManifest",
+    "QualityReview",
+    "REQUIRED_QUALITY_DIMENSIONS",
+    "SourceClass",
+    "SourceLineage",
+    "SourceRange",
+    "DEFAULT_MAX_TRACE_LINE_BYTES",
+    "HARNESS_REGISTRY_ADAPTER_REVISION",
+    "HARNESS_REGISTRY_EVIDENCE_SCHEMA",
+    "HARNESS_TRACE_SCHEMA",
+    "HarnessRegistryError",
+    "HarnessRegistryEvidence",
+    "assess_record",
+    "acquire_harness_registry",
+    "harness_registry_digest",
+    "project",
+    "DEFAULT_MAX_CONTEXT_BYTES",
+    "DEFAULT_MAX_STRING_BYTES",
+    "REVIEW_CONTEXT_SCHEMA",
+    "ReviewContextError",
+    "build_review_context",
+    "scan_value",
+    "verify_parent_snapshot",
+    "parent_snapshot_from_row",
+    "SnapshotManifestIndex",
+    "build_review_tasks",
+    "REVIEW_MANIFEST_SCHEMA",
+    "ReviewManifestArtifact",
+    "artifact_from_json",
+    "load_review_manifest",
+    "review_manifest_artifact",
+    "review_manifest_digest",
+    "review_map",
+    "write_review_manifest",
+    "DatasetSplit",
+    "DecisionSource",
+    "ModelTier",
+    "ObservationStatus",
+    "PreferenceRelease",
+    "ReleaseMetadata",
+    "ReleaseProvenance",
+    "ReleaseRow",
+    "ReleaseView",
+    "RLPromptRelease",
+    "RLRolloutRelease",
+    "RLStep",
+    "SFTRelease",
+    "ToolDefinition",
+    "ToolObservation",
+    "ToolUseRelease",
+    "ToolUseStep",
+    "TrainingMessage",
+    "TrainingToolCall",
+    "VerifierOutcome",
+    "VerifierStatus",
+    "preference_pair_id",
+    "sft_release_from_projection",
+    "tool_use_release_from_projection",
+    "validate_release_row",
+    "CompileInterrupted",
+    "compile_jsonl",
+    "DEFAULT_MAX_REGISTRY_BYTES",
+    "TOOL_REGISTRY_SCHEMA",
+    "RegistryOrigin",
+    "ToolRegistryArtifact",
+    "load_tool_registry",
+    "registry_tools",
+    "tool_registry_artifact",
+    "tool_registry_digest",
+    "write_tool_registry",
+    "FrontendCompileContext",
+    "build_source_lineage",
+    "compile_frontend_jsonl",
+    "RELEASE_MATERIALIZER_REVISION",
+    "materialize_release_view",
+    "FRONTEND_MAPPER_REVISION",
+    "map_row",
+    "quality_gate",
+    "row_shape",
+]
