@@ -54,6 +54,12 @@ from agentir.hardening.materializer import (
     RELEASE_MATERIALIZER_REVISION,
     materialize_release_view,
 )
+from agentir.hardening.parquet_mirror import (
+    PARQUET_MIRROR_SCHEMA,
+    PARQUET_MIRROR_SCHEMA_VERSION,
+    MirrorInterrupted,
+    mirror_jsonl_shards_to_parquet,
+)
 from agentir.hardening.projection import project
 from agentir.hardening.provenance import (
     SnapshotManifestIndex,
@@ -222,6 +228,10 @@ __all__ = [
     "compile_frontend_jsonl",
     "RELEASE_MATERIALIZER_REVISION",
     "materialize_release_view",
+    "PARQUET_MIRROR_SCHEMA",
+    "PARQUET_MIRROR_SCHEMA_VERSION",
+    "MirrorInterrupted",
+    "mirror_jsonl_shards_to_parquet",
     "FRONTEND_MAPPER_REVISION",
     "map_row",
     "quality_gate",
