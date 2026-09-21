@@ -60,6 +60,7 @@ class ModelTier(StrEnum):
     TIER2_OPEN_SOURCE = "tier2_open_source"
     TIER3_LOCAL = "tier3_local"
     UNCLASSIFIED = "unclassified"
+    NOT_APPLICABLE = "not_applicable"
 
 
 class IdentityStatus(StrEnum):
@@ -401,6 +402,13 @@ def _validate_tool_registry(
         raise ValueError("messages contain tools absent from the registry: " + ", ".join(missing))
 
 
+def _require_generated_model_tier(metadata: ReleaseMetadata) -> None:
+    """Require a model tier for rows containing model-generated behavior."""
+
+    if metadata.model_tier is ModelTier.NOT_APPLICABLE:
+        raise ValueError("model-generated release views require a model tier")
+
+
 class _ReleaseBase(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
@@ -419,6 +427,7 @@ class SFTRelease(_ReleaseBase):
 
     @model_validator(mode="after")
     def validate_tool_registry(self) -> SFTRelease:
+        _require_generated_model_tier(self.metadata)
         _validate_tool_registry(self.messages, self.tools)
         return self
 
@@ -435,6 +444,7 @@ class ToolUseRelease(_ReleaseBase):
 
     @model_validator(mode="after")
     def validate_tool_registry(self) -> ToolUseRelease:
+        _require_generated_model_tier(self.metadata)
         names = _tool_names(self.tools)
         missing = sorted({step.call.name for step in self.steps}.difference(names))
         if missing:
@@ -464,6 +474,7 @@ class PreferenceRelease(_ReleaseBase):
 
     @model_validator(mode="after")
     def validate_pair(self) -> PreferenceRelease:
+        _require_generated_model_tier(self.metadata)
         if self.label_source is DecisionSource.TASK_MANIFEST:
             raise ValueError("task manifests cannot create preference labels")
         chosen = json.dumps(
@@ -625,6 +636,11 @@ class RLRolloutRelease(_ReleaseBase):
         if isinstance(value, str) and value.strip():
             return value.strip()
         raise ValueError("RL rollout environment identities must be non-empty")
+
+    @model_validator(mode="after")
+    def require_policy_model_tier(self) -> RLRolloutRelease:
+        _require_generated_model_tier(self.metadata)
+        return self
 
 
 ReleaseRow: TypeAlias = Annotated[

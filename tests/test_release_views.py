@@ -110,6 +110,40 @@ def test_release_metadata_rejects_unclassified_model_tier() -> None:
         ReleaseMetadata(**payload)
 
 
+def test_environment_authored_rl_prompt_allows_not_applicable_model_tier() -> None:
+    metadata = _metadata().model_copy(
+        update={
+            "model_tier": ModelTier.NOT_APPLICABLE,
+            "model_tier_registry_revision": "not-applicable/environment-authored-task/v1",
+        }
+    )
+    row = RLPromptRelease(
+        metadata=metadata,
+        prompt=(TrainingMessage(role="user", content="repair the service"),),
+        environment_id="env-1",
+        environment_revision="env/v1",
+        verifier_revision="verifier/v1",
+        tool_registry_revision="tools/v1",
+        max_turns=8,
+    )
+
+    assert row.metadata.model_tier is ModelTier.NOT_APPLICABLE
+
+
+def test_model_generated_views_reject_not_applicable_model_tier() -> None:
+    metadata = _metadata().model_copy(
+        update={
+            "model_tier": ModelTier.NOT_APPLICABLE,
+            "model_tier_registry_revision": "not-applicable/environment-authored-task/v1",
+        }
+    )
+    with pytest.raises(ValueError, match="model-generated release views require a model tier"):
+        SFTRelease(
+            metadata=metadata,
+            messages=(TrainingMessage(role="user", content="check"), _message()),
+        )
+
+
 def test_release_identity_is_explicit_and_evidence_bound() -> None:
     assert ReleaseIdentity().status is IdentityStatus.NOT_OBSERVED
     with pytest.raises(ValueError, match="cannot carry"):
